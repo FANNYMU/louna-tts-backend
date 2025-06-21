@@ -82,11 +82,43 @@ class ElevenLabs {
     private apiKey: string;
     private baseUrl: string = "https://api.elevenlabs.io/v1";
     private v2BaseUrl: string = "https://api.elevenlabs.io/v2";
+    private skipApiValidation: boolean = false;
 
-    constructor() {
+    constructor(options?: { skipApiValidation?: boolean }) {
         this.apiKey = process.env.TTS_API_KEY || "";
-        if (!this.apiKey) {
+        this.skipApiValidation = options?.skipApiValidation || false;
+        
+        if (!this.apiKey && !this.skipApiValidation) {
             console.warn("ElevenLabs API key not found in environment variables (TTS_API_KEY)");
+        }
+    }
+
+    private validateApiKey(): void {
+        if (!this.apiKey && !this.skipApiValidation) {
+            throw new Error("ElevenLabs API key not found. Please ensure the TTS_API_KEY environment variable is set.");
+        }
+    }
+
+    private async handleApiError(response: Response): Promise<never> {
+        try {
+            const errorData = await response.json().catch(() => ({}));
+            
+            if (response.status === 401) {
+                if (errorData.detail?.status === "detected_unusual_activity") {
+                    console.error("ElevenLabs API Error: Free tier account restricted due to unusual activity.");
+                    console.error("To bypass this error, initialize ElevenLabs with { skipApiValidation: true }");
+                    throw new Error("ElevenLabs API Error: Authentication failed. Please check your API key or upgrade to a paid plan.");
+                } else {
+                    throw new Error("ElevenLabs API Error: Invalid or expired API key. Please verify your API key is correct.");
+                }
+            }
+            
+            throw new Error(`ElevenLabs API error: ${response.status} ${response.statusText}`);
+        } catch (error) {
+            if (error instanceof Error) {
+                throw error;
+            }
+            throw new Error(`ElevenLabs API error: ${response.status} ${response.statusText}`);
         }
     }
 
@@ -96,40 +128,49 @@ class ElevenLabs {
         modelId: string = "eleven_multilingual_v2",
         outputFormat: string = "mp3_44100_128"
     ): Promise<ArrayBuffer> {
+        if (!this.skipApiValidation) {
+            this.validateApiKey();
+        }
+        
         const url = `${this.baseUrl}/text-to-speech/${voiceId}?output_format=${outputFormat}`;
         
-        const response = await fetch(url, {
-            method: "POST",
-            headers: {
-                "Xi-Api-Key": this.apiKey,
-                "Content-Type": "application/json"
-            },
-            body: JSON.stringify({
-                text,
-                model_id: modelId
-            })
-        });
+        try {
+            const response = await fetch(url, {
+                method: "POST",
+                headers: {
+                    "Xi-Api-Key": this.apiKey,
+                    "Content-Type": "application/json"
+                },
+                body: JSON.stringify({
+                    text,
+                    model_id: modelId
+                })
+            });
 
-        if (!response.ok) {
-            const errorData = await response.json().catch(() => ({}));
-            throw new Error(`ElevenLabs API error: ${response.status} ${response.statusText} ${JSON.stringify(errorData)}`);
+            if (!response.ok) {
+                return this.handleApiError(response);
+            }
+
+            const audioBuffer = await response.arrayBuffer();
+            
+            const outputDir = path.join(process.cwd(), 'output');
+            if (!fs.existsSync(outputDir)) {
+                fs.mkdirSync(outputDir, { recursive: true });
+            }
+            
+            const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+            const outputPath = path.join(outputDir, `speech_${timestamp}.${outputFormat.split('_')[0]}`);
+            
+            fs.writeFileSync(outputPath, Buffer.from(audioBuffer));
+            console.log(`Audio saved to: ${outputPath}`);
+
+            return audioBuffer;
+        } catch (error) {
+            if (error instanceof Error) {
+                throw error;
+            }
+            throw new Error("Failed to process text-to-speech request");
         }
-
-        const audioBuffer = await response.arrayBuffer();
-        
-        
-        const outputDir = path.join(process.cwd(), 'output');
-        if (!fs.existsSync(outputDir)) {
-            fs.mkdirSync(outputDir, { recursive: true });
-        }
-        
-        const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
-        const outputPath = path.join(outputDir, `speech_${timestamp}.${outputFormat.split('_')[0]}`);
-        
-        fs.writeFileSync(outputPath, Buffer.from(audioBuffer));
-        console.log(`Audio disimpan ke: ${outputPath}`);
-
-        return audioBuffer;
     }
 
     async getVoices(
@@ -146,6 +187,10 @@ class ElevenLabs {
             include_total_count?: boolean;
         }
     ): Promise<GetVoicesResponse> {
+        if (!this.skipApiValidation) {
+            this.validateApiKey();
+        }
+        
         const queryParams = new URLSearchParams();
         
         if (options) {
@@ -163,19 +208,25 @@ class ElevenLabs {
 
         const url = `${this.v2BaseUrl}/voices${queryParams.toString() ? `?${queryParams.toString()}` : ''}`;
         
-        const response = await fetch(url, {
-            method: "GET",
-            headers: {
-                "Xi-Api-Key": this.apiKey
+        try {
+            const response = await fetch(url, {
+                method: "GET",
+                headers: {
+                    "Xi-Api-Key": this.apiKey
+                }
+            });
+
+            if (!response.ok) {
+                return this.handleApiError(response);
             }
-        });
 
-        if (!response.ok) {
-            const errorData = await response.json().catch(() => ({}));
-            throw new Error(`ElevenLabs API error: ${response.status} ${response.statusText} ${JSON.stringify(errorData)}`);
+            return await response.json() as GetVoicesResponse;
+        } catch (error) {
+            if (error instanceof Error) {
+                throw error;
+            }
+            throw new Error("Failed to fetch voices");
         }
-
-        return await response.json() as GetVoicesResponse;
     }
 }
 
