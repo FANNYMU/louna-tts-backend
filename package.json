@@ -15,10 +15,17 @@
   "type": "commonjs",
   "main": "index.js",
   "scripts": {
-    "start": "node index",
+    "build": "npx tsc",
+    "start": "node ./build/index.js",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "dependencies": {
-    "express": "^5.1.0"
+    "@elevenlabs/elevenlabs-js": "^2.3.0",
+    "axios": "^1.10.0",
+    "express": "^5.1.0",
+    "play-sound": "^1.1.6"
+  },
+  "devDependencies": {
+    "typescript": "^5.8.3"
   }
 }
