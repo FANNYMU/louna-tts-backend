@@ -1,5 +1,6 @@
 import { ElevenLabsClient, play } from '@elevenlabs/elevenlabs-js';
 
+// TODO: env vars undefined causing error
 export default async function testTTS(text: string) {
 	const elevenlabs = new ElevenLabsClient();
 	const audio = await elevenlabs.textToSpeech.convert('JBFqnCBsd6RMkjVDRZzb', {

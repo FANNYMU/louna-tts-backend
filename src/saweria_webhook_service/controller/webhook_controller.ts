@@ -1,10 +1,16 @@
 import { Context } from "hono";
+import WebhookService from "../services/webhook_service";
+import SaweriaWebhook from "../models/saweria_webhook";
 export default class WebhookController {
 	constructor() { }
 
 	async handleWebhook(c: Context) {
 		const body = await c.req.json();
-		console.log(body);
+		const parsedBody: SaweriaWebhook = new SaweriaWebhook(body);
+
+		const wService: WebhookService = new WebhookService();
+		await wService.playTTS(parsedBody);
+
 		return c.text("Success");
 	}
 

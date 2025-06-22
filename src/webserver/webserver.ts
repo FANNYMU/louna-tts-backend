@@ -1,3 +1,4 @@
+import { serve } from '@hono/node-server';
 import { Hono } from 'hono'
 export default class Webserver {
 	app: Hono = new Hono();
@@ -11,8 +12,14 @@ export default class Webserver {
 		return group;
 	}
 
-	prepare() {
+	listen(port: number) {
 		this.useRoutes();
+		serve({
+			fetch: this.app.fetch,
+			port: port,
+		}, () => {
+			console.log("Listening on port:", port);
+		});
 	}
 
 	private useRoutes() {

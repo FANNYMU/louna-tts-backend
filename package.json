@@ -15,14 +15,16 @@
   "type": "commonjs",
   "main": "index.js",
   "scripts": {
-    "dev": "wrangler dev src/index.ts",
+    "dev": "npm run build && npm run start",
     "build": "npx tsc",
     "start": "node ./build/index.js",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "dependencies": {
     "@elevenlabs/elevenlabs-js": "^2.3.0",
+    "@hono/node-server": "^1.14.4",
     "axios": "^1.10.0",
+    "dotenv": "^16.5.0",
     "hono": "^4.8.2",
     "play-sound": "^1.1.6",
     "ts-node": "^10.9.2"

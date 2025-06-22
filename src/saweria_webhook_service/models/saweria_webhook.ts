@@ -14,16 +14,16 @@
 export default class SaweriaWebhook {
 	id: string = "";
 	version: string = "";
-	createdAt: string = "";
+	created_at: string = "";
 	type: string = "";
-	amountRaw: number = 0;
+	amount_raw: number = 0;
 	cut: number = 0;
-	donatorName: string = "";
-	donatorEmail: string = "";
-	donatorIsUser: boolean = false;
+	donator_name: string = "";
+	donator_email: string = "";
+	donator_is_user: boolean = false;
 	message: string = "";
-	etc: { amountToDisplay: number } = {
-		amountToDisplay: 0,
+	etc: { amount_to_display: number } = {
+		amount_to_display: 0,
 	}
 
 	constructor(raw: any) {
