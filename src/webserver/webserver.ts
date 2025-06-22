@@ -7,8 +7,8 @@ export default class Webserver {
 
 	}
 
-	createRoute(path: string) {
-		const route = Router();
+	createRoute() {
+		const route = Router()
 		this.routes.push(route);
 		return route;
 	}
