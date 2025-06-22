@@ -1,233 +1,185 @@
-const fs = require('fs');
-const path = require('path');
+import { ElevenLabsClient } from "@elevenlabs/elevenlabs-js";
+import { join } from 'path';
+import { existsSync, mkdirSync, writeFileSync, createReadStream } from 'fs';
+import chalk from 'chalk';
+import { Readable } from 'stream';
 
-interface Voice {
-    voice_id: string;
-    name: string;
-    samples: Array<{
-        sample_id: string;
-        file_name: string;
-        mime_type: string;
-        size_bytes: number;
-        hash: string;
-        duration_secs: number;
-        remove_background_noise: boolean;
-        has_isolated_audio: boolean;
-        has_isolated_audio_preview: boolean;
-        speaker_separation?: {
-            voice_id: string;
-            sample_id: string;
-            status: string;
-            speakers: Record<string, any>;
-            selected_speaker_ids: string[];
-        };
-        trim_start?: number;
-        trim_end?: number;
-    }>;
-    category: string;
-    fine_tuning?: {
-        is_allowed_to_fine_tune: boolean;
-        state: Record<string, any>;
-        verification_failures: string[];
-        verification_attempts_count: number;
-        manual_verification_requested: boolean;
-        language: string;
-        progress: Record<string, any>;
-        message: Record<string, any>;
-        dataset_duration_seconds: number;
-        verification_attempts: Array<any>;
-        slice_ids: string[];
-        manual_verification: Record<string, any>;
-        max_verification_attempts: number;
-        next_max_verification_attempts_reset_unix_ms: number;
-        finetuning_state: any;
-    };
-    labels: Record<string, any>;
-    description: string;
-    preview_url: string;
-    available_for_tiers: string[];
-    settings: {
-        stability: number;
-        use_speaker_boost: boolean;
-        similarity_boost: number;
-        style: number;
-        speed: number;
-    };
-    sharing?: Record<string, any>;
-    high_quality_base_model_ids?: string[];
-    verified_languages?: Array<{
-        language: string;
-        model_id: string;
-        accent: string;
-        locale: string;
-        preview_url: string;
-    }>;
-    safety_control?: string;
-    voice_verification?: Record<string, any>;
-    permission_on_resource?: string;
-    is_owner?: boolean;
-    is_legacy?: boolean;
-    is_mixed?: boolean;
-    created_at_unix?: number;
+interface ElevenLabsConfig {
+  skipApiValidation?: boolean;
+  outputDir?: string;
 }
 
-interface GetVoicesResponse {
-    voices: Voice[];
-    has_more: boolean;
-    total_count: number;
-    next_page_token: string | null;
+interface VoiceSearchOptions {
+  name?: string;
 }
 
-class ElevenLabs {
-    private apiKey: string;
-    private baseUrl: string = "https://api.elevenlabs.io/v1";
-    private v2BaseUrl: string = "https://api.elevenlabs.io/v2";
-    private skipApiValidation: boolean = false;
-
-    constructor(options?: { skipApiValidation?: boolean }) {
-        this.apiKey = process.env.TTS_API_KEY || "";
-        this.skipApiValidation = options?.skipApiValidation || false;
-        
-        if (!this.apiKey && !this.skipApiValidation) {
-            console.warn("ElevenLabs API key not found in environment variables (TTS_API_KEY)");
-        }
+class AudioStreamHandler {
+  static async toNodeStream(stream: ReadableStream): Promise<Readable> {
+    const chunks: Uint8Array[] = [];
+    const reader = stream.getReader();
+    
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      chunks.push(value);
     }
 
-    private validateApiKey(): void {
-        if (!this.apiKey && !this.skipApiValidation) {
-            throw new Error("ElevenLabs API key not found. Please ensure the TTS_API_KEY environment variable is set.");
-        }
+    return Readable.from(Buffer.concat(chunks));
+  }
+
+  static async saveToFile(stream: ReadableStream, outputPath: string): Promise<void> {
+    const chunks: Uint8Array[] = [];
+    const reader = stream.getReader();
+    
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      chunks.push(value);
     }
 
-    private async handleApiError(response: Response): Promise<never> {
-        try {
-            const errorData = await response.json().catch(() => ({}));
-            
-            if (response.status === 401) {
-                if (errorData.detail?.status === "detected_unusual_activity") {
-                    console.error("ElevenLabs API Error: Free tier account restricted due to unusual activity.");
-                    console.error("To bypass this error, initialize ElevenLabs with { skipApiValidation: true }");
-                    throw new Error("ElevenLabs API Error: Authentication failed. Please check your API key or upgrade to a paid plan.");
-                } else {
-                    throw new Error("ElevenLabs API Error: Invalid or expired API key. Please verify your API key is correct.");
-                }
-            }
-            
-            throw new Error(`ElevenLabs API error: ${response.status} ${response.statusText}`);
-        } catch (error) {
-            if (error instanceof Error) {
-                throw error;
-            }
-            throw new Error(`ElevenLabs API error: ${response.status} ${response.statusText}`);
-        }
-    }
-
-    async textToSpeech(
-        text: string,
-        voiceId: string,
-        modelId: string = "eleven_multilingual_v2",
-        outputFormat: string = "mp3_44100_128"
-    ): Promise<ArrayBuffer> {
-        if (!this.skipApiValidation) {
-            this.validateApiKey();
-        }
-        
-        const url = `${this.baseUrl}/text-to-speech/${voiceId}?output_format=${outputFormat}`;
-        
-        try {
-            const response = await fetch(url, {
-                method: "POST",
-                headers: {
-                    "Xi-Api-Key": this.apiKey,
-                    "Content-Type": "application/json"
-                },
-                body: JSON.stringify({
-                    text,
-                    model_id: modelId
-                })
-            });
-
-            if (!response.ok) {
-                return this.handleApiError(response);
-            }
-
-            const audioBuffer = await response.arrayBuffer();
-            
-            const outputDir = path.join(process.cwd(), 'output');
-            if (!fs.existsSync(outputDir)) {
-                fs.mkdirSync(outputDir, { recursive: true });
-            }
-            
-            const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
-            const outputPath = path.join(outputDir, `speech_${timestamp}.${outputFormat.split('_')[0]}`);
-            
-            fs.writeFileSync(outputPath, Buffer.from(audioBuffer));
-            console.log(`Audio saved to: ${outputPath}`);
-
-            return audioBuffer;
-        } catch (error) {
-            if (error instanceof Error) {
-                throw error;
-            }
-            throw new Error("Failed to process text-to-speech request");
-        }
-    }
-
-    async getVoices(
-        options?: {
-            next_page_token?: string | null;
-            page_size?: number;
-            search?: string | null;
-            sort?: string | null;
-            sort_direction?: 'asc' | 'desc' | null;
-            voice_type?: 'personal' | 'community' | 'default' | 'workspace' | 'non-default' | null;
-            category?: 'premade' | 'cloned' | 'generated' | 'professional' | null;
-            fine_tuning_state?: 'draft' | 'not_verified' | 'not_started' | 'queued' | 'fine_tuning' | 'fine_tuned' | 'failed' | 'delayed' | null;
-            collection_id?: string | null;
-            include_total_count?: boolean;
-        }
-    ): Promise<GetVoicesResponse> {
-        if (!this.skipApiValidation) {
-            this.validateApiKey();
-        }
-        
-        const queryParams = new URLSearchParams();
-        
-        if (options) {
-            if (options.next_page_token) queryParams.append('next_page_token', options.next_page_token);
-            if (options.page_size) queryParams.append('page_size', options.page_size.toString());
-            if (options.search) queryParams.append('search', options.search);
-            if (options.sort) queryParams.append('sort', options.sort);
-            if (options.sort_direction) queryParams.append('sort_direction', options.sort_direction);
-            if (options.voice_type) queryParams.append('voice_type', options.voice_type);
-            if (options.category) queryParams.append('category', options.category);
-            if (options.fine_tuning_state) queryParams.append('fine_tuning_state', options.fine_tuning_state);
-            if (options.collection_id) queryParams.append('collection_id', options.collection_id);
-            if (options.include_total_count !== undefined) queryParams.append('include_total_count', options.include_total_count.toString());
-        }
-
-        const url = `${this.v2BaseUrl}/voices${queryParams.toString() ? `?${queryParams.toString()}` : ''}`;
-        
-        try {
-            const response = await fetch(url, {
-                method: "GET",
-                headers: {
-                    "Xi-Api-Key": this.apiKey
-                }
-            });
-
-            if (!response.ok) {
-                return this.handleApiError(response);
-            }
-
-            return await response.json() as GetVoicesResponse;
-        } catch (error) {
-            if (error instanceof Error) {
-                throw error;
-            }
-            throw new Error("Failed to fetch voices");
-        }
-    }
+    const buffer = Buffer.concat(chunks);
+    writeFileSync(outputPath, buffer);
+  }
 }
 
-export { ElevenLabs };
+export class ElevenLabs {
+  private readonly client: ElevenLabsClient;
+  private readonly outputDir: string;
+  private readonly skipApiValidation: boolean;
+
+  constructor(config?: ElevenLabsConfig) {
+    const apiKey = process.env.TTS_API_KEY;
+    
+    if (!apiKey && !config?.skipApiValidation) {
+      console.warn(chalk.yellow('ElevenLabs API key not found in environment variables (TTS_API_KEY)'));
+    }
+
+    this.client = new ElevenLabsClient({
+      apiKey: apiKey || ''
+    });
+
+    this.skipApiValidation = config?.skipApiValidation || false;
+    this.outputDir = config?.outputDir || join(process.cwd(), 'output');
+
+    this.ensureOutputDirectory();
+  }
+
+  private ensureOutputDirectory(): void {
+    if (!existsSync(this.outputDir)) {
+      mkdirSync(this.outputDir, { recursive: true });
+    }
+  }
+
+  private validateApiKey(): void {
+    if (!process.env.TTS_API_KEY && !this.skipApiValidation) {
+      throw new Error('ElevenLabs API key not found. Please ensure TTS_API_KEY environment variable is set.');
+    }
+  }
+
+  async textToSpeech(
+    text: string,
+    voiceId: string,
+    options: {
+      modelId?: string;
+    } = {}
+  ): Promise<ReadableStream> {
+    try {
+      this.validateApiKey();
+
+      const { modelId = 'eleven_multilingual_v2' } = options;
+
+      return await this.client.textToSpeech.convert(voiceId, {
+        text,
+        modelId
+      });
+    } catch (error) {
+      console.error(chalk.red('Failed to convert text to speech:'), error);
+      throw error;
+    }
+  }
+
+  async textToSpeechToFile(
+    text: string,
+    voiceId: string,
+    filename?: string,
+    options: {
+      modelId?: string;
+    } = {}
+  ): Promise<string> {
+    try {
+      const audioStream = await this.textToSpeech(text, voiceId, options);
+
+      const actualFilename = filename || `speech_${new Date().toISOString().replace(/[:.]/g, '-')}`;
+      const outputPath = join(this.outputDir, `${actualFilename}.mp3`);
+      
+      await AudioStreamHandler.saveToFile(audioStream, outputPath);
+      console.log(chalk.green(`Audio successfully saved to: ${outputPath}`));
+
+      return outputPath;
+    } catch (error) {
+      console.error(chalk.red('Failed to save audio to file:'), error);
+      throw error;
+    }
+  }
+
+  async getVoices() {
+    try {
+      this.validateApiKey();
+
+      const response = await this.client.voices.getAll();
+      console.log(chalk.blue(`Successfully retrieved voices`));
+
+      return response;
+    } catch (error) {
+      console.error(chalk.red('Failed to fetch voices:'), error);
+      throw error;
+    }
+  }
+
+  async searchVoices(options: VoiceSearchOptions = {}) {
+    try {
+      this.validateApiKey();
+
+      const voices = await this.client.voices.getAll();
+      console.log(chalk.blue(`Successfully retrieved all voices`));
+
+      return voices;
+    } catch (error) {
+      console.error(chalk.red('Failed to search voices:'), error);
+      throw error;
+    }
+  }
+
+  async getVoice(voiceId: string) {
+    try {
+      this.validateApiKey();
+
+      const voice = await this.client.voices.get(voiceId);
+      console.log(chalk.blue(`Successfully retrieved voice: ${voice.name}`));
+
+      return voice;
+    } catch (error) {
+      console.error(chalk.red(`Failed to fetch voice with ID ${voiceId}:`), error);
+      throw error;
+    }
+  }
+
+  async textToSpeechToNodeStream(
+    text: string,
+    voiceId: string,
+    options: {
+      modelId?: string;
+    } = {}
+  ): Promise<Readable> {
+    const stream = await this.textToSpeech(text, voiceId, options);
+    return AudioStreamHandler.toNodeStream(stream);
+  }
+
+  getOutputDirectory(): string {
+    return this.outputDir;
+  }
+
+  isApiValidationSkipped(): boolean {
+    return this.skipApiValidation;
+  }
+}
