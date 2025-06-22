@@ -4,4 +4,5 @@
 import { webserver } from "./webserver/webserver";
 import "./saweria_webhook_service/index";
 
-webserver.serve("3001");
+webserver.prepare();
+export default webserver.app;

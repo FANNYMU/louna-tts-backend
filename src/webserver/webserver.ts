@@ -1,38 +1,24 @@
-import express, { Express, IRoute, Router } from "express";
-
+import { Hono } from 'hono'
 export default class Webserver {
-	app: Express = express();
-	routes: Array<Router> = [];
+	app: Hono = new Hono();
+	routes: Array<Hono> = [];
 	constructor() {
-
 	}
 
-	createRoute() {
-		const route = Router()
-		this.routes.push(route);
-		return route;
+	createRoute(path: string) {
+		const group = new Hono().basePath(path);
+		this.routes.push(group);
+		return group;
 	}
 
-	serve(port: string) {
-		this.useMiddlewares();
+	prepare() {
 		this.useRoutes();
-		this.app.listen(port, (err?: Error) => {
-			if (err != undefined) {
-				console.log(err);
-			}
-
-			console.log(`It's Listening on ${port}`);
-		});
 	}
 
 	private useRoutes() {
 		for (const r of this.routes) {
-			this.app.use(r);
+			this.app.route("", r);
 		}
-	}
-
-	private useMiddlewares() {
-		this.app.use(express.json());
 	}
 }
 

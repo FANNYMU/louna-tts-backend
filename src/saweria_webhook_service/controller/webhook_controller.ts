@@ -1,11 +1,13 @@
-import { Request, Response } from "express";
+import { Context } from "hono";
 export default class WebhookController {
 	constructor() { }
 
-	handleWebhook(req: Request, res: Response) {
-		console.log(req.body);
-		res.json({ hello: "World" });
+	async handleWebhook(c: Context) {
+		const body = await c.req.json();
+		console.log(body);
+		return c.text("Success");
 	}
+
 }
 
 const webhookController: WebhookController = new WebhookController();

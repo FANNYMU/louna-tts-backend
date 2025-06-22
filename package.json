@@ -15,7 +15,7 @@
   "type": "commonjs",
   "main": "index.js",
   "scripts": {
-    "dev": "npm run build && npm run start",
+    "dev": "wrangler dev src/index.ts",
     "build": "npx tsc",
     "start": "node ./build/index.js",
     "test": "echo \"Error: no test specified\" && exit 1"
@@ -23,13 +23,13 @@
   "dependencies": {
     "@elevenlabs/elevenlabs-js": "^2.3.0",
     "axios": "^1.10.0",
-    "express": "^5.1.0",
+    "hono": "^4.8.2",
     "play-sound": "^1.1.6",
     "ts-node": "^10.9.2"
   },
   "devDependencies": {
-    "@types/express": "^5.0.3",
     "@types/node": "^24.0.3",
-    "typescript": "^5.8.3"
+    "typescript": "^5.8.3",
+    "wrangler": "^4.20.5"
   }
 }
