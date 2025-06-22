@@ -1,16 +1,20 @@
-import express, { Express } from "express";
+import express, { Express, IRoute, Router } from "express";
 
 export default class Webserver {
 	app: Express = express();
+	routes: Array<Router> = [];
 	constructor() {
 
 	}
 
 	createRoute(path: string) {
-		return this.app.route(path);
+		const route = Router();
+		this.routes.push(route);
+		return route;
 	}
 
 	serve(port: string) {
+		this.useRoutes();
 		this.app.listen(port, (err?: Error) => {
 			if (err != undefined) {
 				console.log(err);
@@ -18,6 +22,12 @@ export default class Webserver {
 
 			console.log(`It's Listening on ${port}`);
 		});
+	}
+
+	private useRoutes() {
+		for (const r of this.routes) {
+			this.app.use(r);
+		}
 	}
 }
 
