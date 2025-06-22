@@ -3,7 +3,8 @@ export default class WebhookController {
 	constructor() { }
 
 	handleWebhook(req: Request, res: Response) {
-		res.json("HelloController");
+		console.log(req.body);
+		res.json({ hello: "World" });
 	}
 }
 

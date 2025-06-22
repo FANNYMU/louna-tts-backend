@@ -14,6 +14,7 @@ export default class Webserver {
 	}
 
 	serve(port: string) {
+		this.useMiddlewares();
 		this.useRoutes();
 		this.app.listen(port, (err?: Error) => {
 			if (err != undefined) {
@@ -28,6 +29,10 @@ export default class Webserver {
 		for (const r of this.routes) {
 			this.app.use(r);
 		}
+	}
+
+	private useMiddlewares() {
+		this.app.use(express.json());
 	}
 }
 

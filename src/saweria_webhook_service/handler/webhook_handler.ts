@@ -2,4 +2,4 @@ import { webserver } from "../../webserver/webserver";
 import { webhookController } from "../controller/webhook_controller";
 
 const route = webserver.createRoute();
-route.get("/", webhookController.handleWebhook);
+route.post("/", webhookController.handleWebhook);
