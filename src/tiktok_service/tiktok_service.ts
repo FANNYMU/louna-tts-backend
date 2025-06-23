@@ -6,7 +6,7 @@ export default class TiktokService {
 	giftCallbacks: Array<EventHandler<WebcastGiftMessage>> = [];
 	constructor() {}
 
-	setUsername(username: string) {
+	init(username: string) {
 		this.connection = new TikTokLiveConnection(username);
 	}
 
