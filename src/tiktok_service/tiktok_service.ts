@@ -1,11 +1,23 @@
-import { TikTokLiveConnection, WebcastChatMessage, WebcastEvent, WebcastGiftMessage } from "tiktok-live-connector";
+import { EventHandler, TikTokLiveConnection, WebcastChatMessage, WebcastEvent, WebcastGiftMessage } from "tiktok-live-connector";
 
 export default class TiktokService {
 	username: string = "";
 	connection: TikTokLiveConnection = new TikTokLiveConnection("");
-	constructor(username: string) {
-		this.username = username;
+	chatCallbacks: Array<EventHandler<WebcastChatMessage>> = [];
+	giftCallbacks: Array<EventHandler<WebcastGiftMessage>> = [];
+	constructor() {
 		this.connection = new TikTokLiveConnection(this.username);
+	}
+	setUsername(username: string) {
+		this.username = username;
+	}
+
+	registerChatCallback(callback: EventHandler<WebcastChatMessage>) {
+		this.chatCallbacks.push(callback);
+	}
+
+	registerGiftCallback(callback: EventHandler<WebcastGiftMessage>) {
+		this.giftCallbacks.push(callback);
 	}
 
 	async connect() {
@@ -17,11 +29,22 @@ export default class TiktokService {
 		}
 	}
 
-	async handleMessage(callback: (data: WebcastChatMessage) => void) {
-		this.connection.on(WebcastEvent.CHAT, callback);
+	async handleMessage() {
+		this.connection.on(WebcastEvent.CHAT, (data) => {
+			for (const callback of this.chatCallbacks) {
+				callback(data);
+			}
+		});
 	}
 
-	async handleGift(callback: (data: WebcastGiftMessage) => void) {
-		this.connection.on(WebcastEvent.GIFT, callback);
+	async handleGift() {
+		this.connection.on(WebcastEvent.GIFT, (data) => {
+			for (const callback of this.giftCallbacks) {
+				callback(data);
+			}
+		});
 	}
 }
+
+const tiktokService = new TiktokService();
+export { tiktokService };
