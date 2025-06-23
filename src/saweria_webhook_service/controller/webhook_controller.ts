@@ -9,7 +9,7 @@ export default class WebhookController {
 		const parsedBody: SaweriaWebhook = new SaweriaWebhook(body);
 
 		const wService: WebhookService = new WebhookService();
-		await wService.playTTS(parsedBody);
+		wService.logDonator(parsedBody);
 
 		return c.text("Success");
 	}
