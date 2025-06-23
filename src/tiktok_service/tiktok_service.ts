@@ -1,15 +1,13 @@
 import { EventHandler, TikTokLiveConnection, WebcastChatMessage, WebcastEvent, WebcastGiftMessage } from "tiktok-live-connector";
 
 export default class TiktokService {
-	username: string = "";
 	connection: TikTokLiveConnection = new TikTokLiveConnection("");
 	chatCallbacks: Array<EventHandler<WebcastChatMessage>> = [];
 	giftCallbacks: Array<EventHandler<WebcastGiftMessage>> = [];
-	constructor() {
-		this.connection = new TikTokLiveConnection(this.username);
-	}
+	constructor() {}
+
 	setUsername(username: string) {
-		this.username = username;
+		this.connection = new TikTokLiveConnection(username);
 	}
 
 	registerChatCallback(callback: EventHandler<WebcastChatMessage>) {

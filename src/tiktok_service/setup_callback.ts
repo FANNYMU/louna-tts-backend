@@ -16,7 +16,8 @@ tiktokService.registerChatCallback((data) => {
 				const userId = data.user!.uniqueId;
 				const chat = tiktokChatService.findLatestChat(userId, "!tts");
 				return chat!.message || "";
-			}
+			},
+			amount: 1000
 		})
 		console.log("Donator: ", donatorService.donators.length());
 	}

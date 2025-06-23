@@ -30,4 +30,8 @@ export default class SaweriaWebhook {
 		// This is a blessing from above
 		Object.assign(this, raw);
 	}
+
+	get amount(): number {
+		return this.amount_raw;
+	}
 }
