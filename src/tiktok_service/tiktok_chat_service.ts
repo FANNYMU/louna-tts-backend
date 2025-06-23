@@ -32,6 +32,9 @@ export default class TiktokChatService {
 	findLatestChat(userId: string, prefix: string): Chat | undefined {
 		const chats = this.findChats(userId, prefix);
 		if (chats.length > 0) {
+			this.chatHistory = this.chatHistory.filter((value) => {
+				return value.message != chats[chats.length - 1].message;
+			});
 			return chats[chats.length - 1];
 		}
 	}
@@ -39,6 +42,9 @@ export default class TiktokChatService {
 	findLatestRandomChat(prefix: string): Chat | undefined {
 		const chats = this.findRandomChats(prefix);
 		if (chats.length > 0) {
+			this.chatHistory = this.chatHistory.filter((value) => {
+				return value.message != chats[chats.length - 1].message;
+			});
 			return chats[chats.length - 1];
 		}
 	}

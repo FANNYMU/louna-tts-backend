@@ -27,7 +27,7 @@ tiktokService.registerGiftCallback((data) => {
 	//	getMessage: () => {
 	//		const userId = data.user!.uniqueId;
 	//		const chat = tiktokChatService.findLatestChat(userId, "!tts");
-	//		return chat!.message || "";
+	//		return chat!.message || ""
 	//	}
 	//})
 })

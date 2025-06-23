@@ -6,7 +6,7 @@ import "./saweria_webhook_service/index";
 import "./tiktok_service/setup_callback";
 import { tiktokService } from "./tiktok_service/tiktok_service";
 
-tiktokService.setUsername("lunarisnia");
+tiktokService.init("thekingbernard");
 tiktokService.connect().then(() => {
 	console.log("Tiktok Chat connected");
 	tiktokService.handleMessage();
