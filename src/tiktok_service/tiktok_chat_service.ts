@@ -1,7 +1,9 @@
 import TiktokService from "./tiktok_service";
+import { chatRepository } from "../database";
 
 interface Chat {
 	userId: string,
+	username?: string,
 	message: string
 	// TODO: add "date" here if I wanted to add long term storage
 }
@@ -13,6 +15,16 @@ export default class TiktokChatService {
 
 	logChat(chat: Chat) {
 		this.chatHistory.push(chat);
+		
+		if (chat.username) {
+			chatRepository.save({
+				user_id: chat.userId,
+				username: chat.username,
+				message: chat.message,
+				platform: "tiktok",
+				timestamp: Date.now()
+			});
+		}
 	}
 
 	findChats(userId: string, prefix: string): Array<Chat> {
